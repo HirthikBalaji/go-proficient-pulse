@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,9 @@ import (
 	"go-proficient-pulse/pkg/ringbuffer"
 	"go-proficient-pulse/pkg/workerpool"
 )
+
+//go:embed web/index.html
+var indexHTML []byte
 
 type ServerStatus struct {
 	UptimeSeconds float64 `json:"uptime_seconds"`
@@ -75,7 +79,6 @@ func main() {
 					val, err := rb.Pop()
 					if err == nil {
 						pool.Submit(func(c context.Context) error {
-							// Compute payload work
 							_ = val * 42
 							return nil
 						})
@@ -108,59 +111,8 @@ func main() {
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Go Proficient Pulse - Live Telemetry Dashboard</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; margin: 0; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; max-width: 900px; }
-        .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; border: 1px solid #334155; }
-        h1 { color: #38bdf8; font-size: 1.5rem; margin-top: 0; }
-        .metric { font-size: 2rem; font-weight: bold; color: #4ade80; margin: 0.5rem 0; }
-        .label { color: #94a3b8; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    </style>
-</head>
-<body>
-    <h1>⚡ Go Proficient Pulse — Live Engine Dashboard</h1>
-    <div class="grid">
-        <div class="card">
-            <div class="label">Total Processed Workloads</div>
-            <div id="processed" class="metric">Loading...</div>
-        </div>
-        <div class="card">
-            <div class="label">Work-Stolen Jobs</div>
-            <div id="stolen" style="color:#fbbf24" class="metric">Loading...</div>
-        </div>
-        <div class="card">
-            <div class="label">Active Goroutines</div>
-            <div id="goroutines" style="color:#60a5fa" class="metric">Loading...</div>
-        </div>
-        <div class="card">
-            <div class="label">Ring Buffer Backlog</div>
-            <div id="ring" style="color:#f43f5e" class="metric">Loading...</div>
-        </div>
-    </div>
-    <script>
-        async function update() {
-            try {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                document.getElementById('processed').innerText = data.processed_jobs.toLocaleString();
-                document.getElementById('stolen').innerText = data.stolen_jobs.toLocaleString();
-                document.getElementById('goroutines').innerText = data.goroutines;
-                document.getElementById('ring').innerText = data.ring_buffer_len.toLocaleString() + ' / ' + data.ring_buffer_cap.toLocaleString();
-            } catch(e) {}
-        }
-        setInterval(update, 500);
-        update();
-    </script>
-</body>
-</html>
-`)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(indexHTML)
 	})
 
 	server := &http.Server{
@@ -169,7 +121,7 @@ func main() {
 	}
 
 	go func() {
-		fmt.Println("--> HTTP Telemetry server active at http://localhost:8080")
+		fmt.Println("--> Synapse Design System Website & HTTP Telemetry active at http://localhost:8080")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			fmt.Printf("Server error: %v\n", err)
 		}
